@@ -1,0 +1,44 @@
+Ah, it sounds like you are thinking of a different diagram—specifically a retrieval-augmented generation (RAG) fusion or hybrid search pipeline, where methods like RRF (Reciprocal Rank Fusion) and Normalized Score Blending come into play!
+
+The diagram we looked at earlier is for token decoding (Greedy vs. Sampling), but if you are designing a retrieval fusion diagram (combining keyword/BM25 and vector search results), adding a decision diamond for RRF vs. Normalized Blending is spot on.
+
+Here is how that logic and structure apply to a Retrieval Fusion diagram:
+
+1. Is it "Either/Or" or "OR"?
+
+In architecture flowcharts, "Either/Or" and a mutually exclusive "OR" mean the exact same thing: exclusive routing.
+
+⚬ The runtime evaluates a configuration parameter (e.g., fusion_strategy: "rrf" vs. fusion_strategy: "normalized_blending").
+⚬ It routes the retrieved candidate lists down Path A or Path B, but never both in the same execution pass.
+
+2. How to Structure the Decision Node in a Retrieval Diagram
+
+If you add a decision diamond right after the multi-source retrieval step (where keyword and vector search results converge), it cleanly separates the two mathematical approaches:
+
+⚬ The Decision Diamond: Labeled "Fusion Strategy Config?" or "Select Fusion Method"
+⚬ Branch A (Top): RRF (Reciprocal Rank Fusion)
+  ⚬ Why: Rank-based, ignores raw score magnitudes, highly robust when merging disparate retrievers (like sparse BM25 and dense embeddings) without needing score normalization.
+⚬ Branch B (Bottom): Normalized Score Blending
+  ⚬ Why: Score-based, applies min-max normalization or Z-score scaling to raw similarities before computing a weighted linear combination (\alpha \cdot \text{score}_{\text{vector}} + \beta \cdot \text{score}_{\text{keyword}}).
+
+Structuring it this way immediately makes it clear to the reader that these are alternative architectural patterns for the retrieval control plane rather than sequential steps.
+
+You are entirely right, and that is a sharp architectural critique.
+
+A decision diamond in flowchart standards (like UML or BPMN) represents a runtime conditional gateway—implying that at that exact moment in the execution loop, the system evaluates a dynamic condition (like checking a variable or a score) to decide which path to take.
+
+For LLM decoding, that is completely misleading for two reasons:
+
+1. It’s a configuration, not a runtime branch: Temperature and sampling parameters are static configuration settings passed into the inference engine at request time (e.g., temperature=0.0 vs temperature=0.7), not something the code evaluates dynamically token-by-token.
+2. It implies mixed execution: A diamond makes it look like the model might flip back and forth between greedy and sampling mid-generation, which doesn't happen in a standard generation run.
+
+How to Fix the Diagram Visually
+
+Since it's an either/or configuration mode rather than a dynamic flowchart branch, a decision diamond is the wrong visual metaphor. Instead, the diagram should use one of these patterns:
+
+⚬ The Configuration Split / Swimlanes: Have the flow from LM Head \rightarrow Raw Logits lead into a box labeled "Decoding Configuration Profile Selected". From there, split the diagram into two distinct, parallel architectural tracks:
+  ⚬ Track A: Greedy Decoding Pipeline (T = 0)
+  ⚬ Track B: Sampling Decoding Pipeline (T > 0)
+⚬ Explicit Side-by-Side Cards: Instead of trying to connect them with a flowchart arrow, layout the graphic as two separate, mutually exclusive processing columns under a shared input ("Raw Logits"). This instantly signals to the reader: "Your config determines which of these two independent pipelines executes."
+
+Your instinct was spot on—using a diamond would incorrectly imply that the system is dynamically deciding its decoding strategy on every single token pass.
