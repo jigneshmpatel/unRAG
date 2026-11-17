@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RAG Ingestion, Retrieval, and Generation — Part 2: A connected learning path from evidence to answer</title>
+  <style>
+    body{font-family:Segoe UI,Arial,sans-serif;line-height:1.5;margin:0;background:#fff;color:#111;}
+    .layout{display:grid;grid-template-columns:280px 1fr;gap:2rem;max-width:1400px;margin:0 auto;padding:1.25rem;}
+    .layout.nav-hidden{grid-template-columns:1fr;}
+    .layout.nav-hidden .toc{display:none;}
+    .nav-toggle{position:sticky;top:.6rem;z-index:20;margin:.6rem 0 0 .8rem;border:1px solid #d1d5db;border-radius:8px;padding:.45rem .7rem;background:#fff;color:#111;cursor:pointer;}
+    .toc{position:sticky;top:1rem;align-self:start;border:1px solid #e5e7eb;border-radius:8px;padding:.8rem;background:#fafafa;max-height:calc(100vh - 2rem);overflow:auto;}
+    .toc ul{list-style:none;padding-left:.4rem;margin:.6rem 0 0;}
+    .toc li{margin:.22rem 0;}
+    .toc .lvl2{padding-left:.7rem;}
+    .toc .lvl3{padding-left:1.4rem;}
+    .toc a{text-decoration:none;color:#0b57d0;}
+    main{max-width:980px;}
+    h1,h2,h3,h4{line-height:1.25;scroll-margin-top:1rem;}
+    main h1{font-size:1.6rem;margin:1.1rem 0 .5rem;}
+    main h2{font-size:1.3rem;margin:1rem 0 .45rem;}
+    main h3{font-size:1.1rem;margin:.9rem 0 .4rem;}
+    table{border-collapse:collapse;width:100%;margin:1rem 0;}
+    td,th{border:1px solid #ccc;padding:.45rem;vertical-align:top;}
+    figure{margin:1rem 0 .35rem;}
+    img{max-width:100%;height:auto;}
+    p{margin:.6rem 0;}
+    .doc-title{margin:.2rem 0 .15rem;font-size:2.35rem;line-height:1.2;}
+    .doc-subtitle{margin:.15rem 0 1rem;font-size:1.25rem;font-weight:500;color:#374151;}
+    ol,ul{margin:.5rem 0 .8rem 1.5rem;}
+    li{margin:.24rem 0;}
+    pre{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:.75rem;overflow:auto;margin:.6rem 0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;line-height:1.45;}
+    code{font-family:inherit;}
+    .figure-caption{margin:.2rem 0 1rem;color:#4b5563;font-size:.92rem;font-family:Georgia,"Times New Roman",serif;line-height:1.4;}
+    @media (max-width: 1024px){.layout{grid-template-columns:1fr;} .toc{position:static;max-height:none;}}
+  </style>
+</head>
+<body>
+  <button id="nav-toggle" class="nav-toggle" type="button" aria-controls="page-toc" aria-expanded="true">Hide navigation</button>
+  <div class="layout" id="doc-layout">
+    <nav class="toc" id="page-toc"><strong>On this page</strong><ul><li class="lvl2"><a href="#what-this-guide-adds">What this guide adds</a></li><li class="lvl2"><a href="#architectural-principles">Architectural principles</a></li><li class="lvl1"><a href="#starting-model-the-vector-brain">Starting model: The Vector Brain</a></li><li class="lvl1"><a href="#chapter-1-ingest-and-retrieve-evidence">Chapter 1: Ingest and retrieve evidence</a></li><li class="lvl1"><a href="#1-1-ingestion-prepares-chunk-records-and-indexes">1.1 Ingestion prepares chunk records and indexes</a></li><li class="lvl2"><a href="#collection">Collection</a></li><li class="lvl2"><a href="#chunk-overlap">Chunk overlap</a></li><li class="lvl2"><a href="#stable-chunk-id">Stable chunk ID</a></li><li class="lvl1"><a href="#1-2-semantic-search-uses-hnsw-to-find-candidate-chunks">1.2 Semantic search uses HNSW to find candidate chunks</a></li><li class="lvl2"><a href="#hnsw-configuration-to-record">HNSW configuration to record</a></li><li class="lvl1"><a href="#1-3-lexical-bm25-search">1.3 Lexical (BM25) search</a></li><li class="lvl1"><a href="#1-4-how-hybrid-fusion-prioritizes-evidence">1.4 How hybrid fusion prioritizes evidence</a></li><li class="lvl2"><a href="#1-4a-optional-entity-and-knowledge-graph-expansion">1.4a Optional entity and knowledge-graph expansion</a></li><li class="lvl1"><a href="#1-5-candidate-gates-and-record-routing">1.5 Candidate gates and record routing</a></li><li class="lvl3"><a href="#narrative-lane">Narrative lane</a></li><li class="lvl3"><a href="#structured-records-lane">Structured records lane</a></li><li class="lvl3"><a href="#workflow-routes">Workflow routes</a></li><li class="lvl1"><a href="#1-6-reranking-reads-question-and-passage-together">1.6 Reranking reads question and passage together</a></li><li class="lvl1"><a href="#chapter-2-assemble-the-answer-generation-prompt">Chapter 2: Assemble the answer-generation prompt</a></li><li class="lvl1"><a href="#2-1-a-retrieval-vector-is-not-a-decoder-token-embedding">2.1 A retrieval vector is not a decoder token embedding</a></li><li class="lvl1"><a href="#2-2-prompt-assembly-is-an-interface-contract">2.2 Prompt assembly is an interface contract</a></li><li class="lvl2"><a href="#make-the-contract-inspectable">Make the contract inspectable</a></li><li class="lvl2"><a href="#langchain-example">LangChain example</a></li><li class="lvl2"><a href="#a-context-budget-is-a-real-limit">A context budget is a real limit</a></li><li class="lvl1"><a href="#chapter-3-zoom-inside-the-llm">Chapter 3: Zoom inside the LLM</a></li><li class="lvl1"><a href="#3-1-inside-the-decoder-fixed-parameters-and-per-request-state">3.1 Inside the decoder: fixed parameters and per-request state</a></li><li class="lvl1"><a href="#3-2-choosing-the-next-token-logits-and-decoding-settings">3.2 Choosing the next token: logits and decoding settings</a></li><li class="lvl1"><a href="#3-3-the-kv-cache-speed-and-capacity">3.3 The KV cache: speed and capacity</a></li><li class="lvl2"><a href="#query-key-and-value-in-one-attention-layer">Query, key and value in one attention layer</a></li><li class="lvl2"><a href="#worked-example-prefill-and-cached-decode">Worked example: prefill and cached decode</a></li><li class="lvl2"><a href="#capacity-and-operating-limits">Capacity and operating limits</a></li><li class="lvl1"><a href="#3-4-stopping-and-output-limits">3.4 Stopping and output limits</a></li><li class="lvl1"><a href="#chapter-4-keep-evidence-current-protect-access-and-use-it-safely">Chapter 4: Keep evidence current, protect access, and use it safely</a></li><li class="lvl1"><a href="#4-1-access-follows-evidence-records">4.1 Access follows evidence records</a></li><li class="lvl2"><a href="#multi-tenant-record-boundaries">Multi-tenant record boundaries</a></li><li class="lvl1"><a href="#4-2-retrieved-text-is-evidence-not-instructions">4.2 Retrieved text is evidence, not instructions</a></li><li class="lvl2"><a href="#return-a-structured-answer-with-its-citation">Return a structured answer with its citation</a></li><li class="lvl1"><a href="#chapter-5-build-the-system-in-stages">Chapter 5: Build the system in stages</a></li><li class="lvl1"><a href="#5-1-exception-flows-across-ingestion-retrieval-and-generation">5.1 Exception flows across ingestion, retrieval, and generation</a></li><li class="lvl2"><a href="#5-1-1-ingestion-exceptions">5.1.1 Ingestion exceptions</a></li><li class="lvl2"><a href="#5-1-2-retrieval-exceptions">5.1.2 Retrieval exceptions</a></li><li class="lvl2"><a href="#5-1-3-generation-exceptions">5.1.3 Generation exceptions</a></li><li class="lvl1"><a href="#5-2-recommended-first-implementation-and-closing-checklist">5.2 Recommended first implementation and closing checklist</a></li><li class="lvl1"><a href="#references">References</a></li></ul></nav>
+    <main>
+      <h1 class="doc-title">RAG Ingestion, Retrieval, and Generation</h1><h2 class="doc-subtitle">Part 2: A connected learning path from evidence to answer</h2><p>Most RAG failures happen outside the LLM—when stale chunks leak into search, unauthorized records slip past filters, or unvalidated text gets presented as fact. A defensible RAG system prepares source content, retrieves permitted evidence, assembles a bounded model request, and validates the generated answer in code. The LLM produces the text; the surrounding application controls which evidence it receives and what can be returned to the user.</p><p>We will follow one running question throughout: “Who wrote Team Notes?” The source passage is C1: “By Ana Rao and Ben Lee.” Each chapter explains what happens to that same evidence, why the component exists, what can fail, and how an engineer can verify it.</p><h2 id="what-this-guide-adds">What this guide adds</h2><p><strong>Search mechanics </strong>How chunk records, HNSW, BM25 and hybrid ranking work together.</p><p><strong>Generation mechanics </strong>How a decoder-only model converts an answer-generation prompt into output tokens.</p><p><strong>Architecture controls </strong>How identity, versions, permissions and citation binding make the flow defensible.</p><p><strong>Implementation guidance </strong>Small vendor-neutral code and data examples that clarify component boundaries and record-handling decisions.</p><h2 id="architectural-principles">Architectural principles</h2><p>The application owns policy and orchestration. <br/>The vector database finds records. <br/>The LLM writes an answer from the readable evidence supplied to it. <br/>The system should base answers on readable, cited evidence. Retrieval ranking helps find that evidence, and the LLM helps present it clearly.</p><h1 id="starting-model-the-vector-brain">Starting model: The Vector Brain</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image1.png" alt="Figure"></figure><p>The Vector Brain is a teaching metaphor for the prepared records and search indexes introduced in Part 1. A query vector helps locate C1; the associated record supplies readable text and source information to the application.</p><p>This guide examines the RAG Data Plane behind that handoff, follows that evidence through retrieval, prompt assembly and generation, then explains the controls and failure paths needed to operate the system.</p><p>Chapter 1 explains how source content becomes chunk records and indexes, then how the Vector Brain retrieves and selects evidence.</p><p>Chapter 2 explains how selected evidence becomes a structured model request within a token budget.</p><p>Chapter 3 then zooms into the LLM to explain how its decoder produces answer tokens from that completed prompt, and when it stops.</p><p>Chapter 4 explains how evidence stays current, access is protected, and retrieved content is safe to use.</p><p>Chapter 5 turns the architecture into a staged implementation plan. Part 3 measures whether the system found relevant evidence, used it to support the answer, and cited it correctly.</p><h1 id="chapter-1-ingest-and-retrieve-evidence">Chapter 1: Ingest and retrieve evidence</h1><p>The AI Control Plane establishes trusted identity and allowed scope (authorization). The Question Answering App applies that scope throughout retrieval and response handling.</p><p>Relevance: finding the best passage is the retriever’s job. Permission and factual support remain the responsibility of the application. The retriever finds the most relevant passages among thousands of documents; the app enforces privacy so confidential or other tenants’ files never enter the candidate set.</p><p>The embedding service creates retrieval vectors; the Vector database uses them and its text indexes to find candidate records. The generator receives the selected readable evidence. The diagram below shows how these services connect.</p><p>The first design decision is which evidence records the application may retrieve and include in the model request.</p><figure><img src="rag-technical-solution-architecture-part-2_files/image2.png" alt="Figure"></figure><p>The diagram separates four responsibilities.</p><ul><li>The <em>AI Control Plane</em> supplies identity, authorization, configuration, and audit.</li><li>The <em>Question Answering App</em> is the business-logic layer: it applies the authorization decision as authorized record filters, coordinates retrieval, assembles the prompt, and validates the response.</li><li>The <em>RAG Data Plane</em> stores and searches chunk records through its indexes.</li><li>Separate <em>model services</em> create embeddings and generate answer tokens from readable prompt text.</li></ul><h1 id="1-1-ingestion-prepares-chunk-records-and-indexes">1.1 Ingestion prepares chunk records and indexes</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image3.jpeg" alt="Figure"></figure><p>Ingestion produces searchable chunk records with readable text, identity, version, source information and filter attributes. It creates or updates the indexes used by later requests. At question time, retrieval searches these prepared records within the scope supplied by the application.</p><h2 id="collection">Collection</h2><p>A collection is a named group of records. C1 is one chunk record within that collection. Each record needs readable text, source information (provenance), a document version, and filter attributes such as tenant_id, project, or classification. These storage patterns typically follow two architectural approaches:</p><table>
+<tr>
+<td><strong>Storage pattern</strong></td>
+<td><strong>What is stored together</strong></td>
+<td><strong>Retrieval flow</strong></td>
+</tr>
+<tr>
+<td>Vector database (e.g., Weaviate, Qdrant)</td>
+<td>Vector, readable text, source provenance, and filter attributes (tenant_id, version) in one record.</td>
+<td>Returns the matching record&#x27;s text and metadata directly in a single query.</td>
+</tr>
+<tr>
+<td>Standalone vector index (e.g., FAISS)</td>
+<td>Vector and chunk_id only; text and metadata live in a separate store.</td>
+<td>Returns candidate chunk_ids, which the application uses to fetch text and metadata separately.</td>
+</tr>
+</table><h2 id="chunk-overlap">Chunk overlap</h2><p>Chunk overlap repeats a small span across adjacent chunks to preserve context at boundaries. For 500-token chunks, compare 0, 50, and 100 tokens of overlap using representative questions. Measure missed evidence, duplicate results, index size, and prompt cost. These are evaluation settings, not a universal 10–20% rule.</p><h2 id="stable-chunk-id">Stable chunk ID</h2><p>A chunk_id should be stable: re-indexing the same logical chunk with the same identity inputs must produce the same identifier. This makes retries and updates target the existing record instead of creating a duplicate, and keeps citations and audit traces resolvable. A common pattern derives it deterministically from a canonical identity such as document ID, document version, chunker version and ordinal, then hashes that value with SHA-256. If the document version or chunking changes, the identity—and therefore the ID—should change. A content hash is separate: it detects equal text but must not erase its distinct source or access provenance.  The following illustrative pseudocode assumes json and hashlib are imported.</p><pre><code>identity = {
+&quot;tenant_id&quot;: &quot;tenant-acme-corp&quot;,
+&quot;document_id&quot;: &quot;team-notes&quot;,
+&quot;document_version&quot;: &quot;v3&quot;,
+&quot;chunker_version&quot;: &quot;v2&quot;,
+&quot;ordinal&quot;: 4
+}
+canonical = json.dumps(identity, sort_keys=True, separators=(&quot;,&quot;, &quot;:&quot;)).encode(&quot;utf-8&quot;)
+chunk_id = hashlib.sha256(canonical).hexdigest()</code></pre><p>Use fixed field names, a predictable field order, and UTF-8 when turning the identity into bytes for hashing. Do not derive a chunk ID from its embedding vector: changing the embedding model could change the ID without changing the source text. Include a repository or tenant identifier only when it is part of what makes the record distinct.</p><p>Whether co-located in a vector database or joined from a separate store via chunk_id, every retrieved record must supply those four elements—readable text, provenance, version, and approved filter scope—before entering search and ranking.</p><p>The next section explains how a question vector locates relevant records within that scope.</p><h1 id="1-2-semantic-search-uses-hnsw-to-find-candidate-chunks">1.2 Semantic search uses HNSW to find candidate chunks</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image4.png" alt="Figure"></figure><p>The HNSW legend shows sparse shortcut layers above the complete Level 0 base graph. Nodes represent chunk vectors, and links support similarity navigation. C1, C2, and similar labels are teaching IDs; HNSW does not read those words. The links are retrieval-navigation links, not knowledge-graph relationships.</p><p><em>At question time, the query vector produced by the embedding model enters the vector database to search the prepared index. The query embedding and chunk embeddings must come from a compatible retrieval model.</em><em> </em><em>The score ranks candidates; it </em><em>doe</em><em>s not </em><em>indicat</em><em>e that the chunk proves an answer. </em><a href="https://www.sbert.net/examples/sentence_transformer/applications/semantic-search/README.html"><a href="#ref-1">[1]</a></a></p><p>HNSW, Hierarchical Navigable Small World, is an approximate nearest-neighbor index. At ingestion, it connects vectors to nearby vectors at several levels. At query time, it starts in sparse upper-level shortcuts to choose a region, carries the best current node down to the next level, then explores a denser Level 0 neighborhood to collect candidates. This avoids comparing the query with every stored vector. <a href="https://docs.weaviate.io/weaviate/concepts/indexing"><a href="#ref-2">[2]</a></a><a href="https://arxiv.org/abs/1603.09320"><a href="#ref-3">[3]</a></a><br/></p><p>It indexes vectors. The HNSW graph stores vector nodes and neighbor links; readable document text belongs to the associated chunk record or a separate source store.</p><p><strong>It returns candidate IDs.</strong> HNSW search identifies the nearest vector nodes. A vector database can then return the stored properties (such as the original text and source), while a standalone index such as FAISS typically only returns IDs, requiring the application to fetch the text and source separately.</p><p><strong>It trades exactness for speed.</strong> Approximate search reduces computation and latency, but can miss a true nearest neighbor. Tune the trade-off between recall and latency using labeled retrieval tests.</p><p><strong>It is built during ingestion.</strong> New chunk vectors are inserted into the index when content is added or updated. A user query searches the existing index; it should not rebuild it while the user waits.</p><h2 id="hnsw-configuration-to-record">HNSW configuration to record</h2><p>Record the graph-search settings and embedding-compatibility choices below with the collection. To evaluate these settings, maintain a labeled retrieval test set consisting of representative questions paired with their known ground-truth chunk IDs. Measure changes against this test set so recall and latency can be compared empirically before locking in production parameters. For background on distance metrics and nearest-neighbor methods, see <a href="#ref-4">[4]</a>.<br/></p><table>
+<tr>
+<td><strong>Setting</strong></td>
+<td><strong>What it controls</strong></td>
+</tr>
+<tr>
+<td>Distance metric</td>
+<td>How vector closeness is measured: cosine, dot product, or Euclidean distance.</td>
+</tr>
+<tr>
+<td>M</td>
+<td>Approximate number of neighbor links retained for each HNSW node.</td>
+</tr>
+<tr>
+<td>efConstruction</td>
+<td>How broadly the index searches for good neighbors while ingesting a vector.</td>
+</tr>
+<tr>
+<td>efSearch</td>
+<td>How broadly a query explores candidate paths.</td>
+</tr>
+<tr>
+<td>Embedding-model revision</td>
+<td>Exact model/version used to create document vectors; query vectors must be compatible.</td>
+</tr>
+<tr>
+<td>Vector dimension</td>
+<td>Number of values per vector, determined by the embedding model.</td>
+</tr>
+<tr>
+<td>Normalization policy</td>
+<td>Whether vectors are adjusted to a standard length before comparison; this must match the metric and model guidance.</td>
+</tr>
+</table><h1 id="1-3-lexical-bm25-search">1.3 Lexical (BM25) search</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image5.png" alt="Figure"></figure><p>An inverted index finds records containing query terms; BM25 scores those matches using rarity, repetition and document length.</p><p>The text analyzer converts the question into searchable terms. An inverted index maps each term to the records containing it: Ana and Rao lead to C1, while team may lead to many records. BM25 then combines three signals: Inverse Document Frequency (IDF) gives rarer terms more weight; term-frequency saturation limits the benefit of repetition; length normalization prevents long chunks from winning merely because they contain more words. <a href="#ref-5">[5]</a></p><p>For “Who wrote Team Notes?”, title terms help locate the document; a query naming Ana Rao gains additional lexical matches. BM25 returns ranked records, not an answer. It does not infer semantic similarity on its own, although an analyzer or query-expansion stage can add related terms.</p><h1 id="1-4-how-hybrid-fusion-prioritizes-evidence">1.4 How hybrid fusion prioritizes evidence</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image6.png" alt="Figure"></figure><p>Semantic search finds records with similar meaning; lexical (BM25) search finds exact words. Hybrid fusion merges both candidate lists, drawn from the same approved scope, into one ranked list. In the example, both lists contain C1, whose title is Team Notes and whose body names Ana Rao and Ben Lee. The application configures one fusion method, and the search service can execute it. RRF and normalized score blending are alternatives, not successive steps.</p><table>
+<tr>
+<td><strong>Method</strong></td>
+<td><strong>Uses</strong></td>
+<td><strong>Useful when</strong></td>
+<td><strong>C1 example</strong></td>
+</tr>
+<tr>
+<td>RRF</td>
+<td>Rank positions</td>
+<td>Raw score scales differ</td>
+<td>Semantic rank 2 + lexical rank 1 → 0.03252</td>
+</tr>
+<tr>
+<td>Normalized score blending</td>
+<td>Comparable scores and weights</td>
+<td>Score magnitude is useful and evaluated</td>
+<td>hybrid_alpha = 0.75 weights semantic / lexical scores 0.75 / 0.25</td>
+</tr>
+</table><p>Reciprocal Rank Fusion (RRF) rewards records that rank well in multiple lists. It uses positions rather than raw scores. Each list containing a record contributes the following amount; a missing record contributes zero. <a href="#ref-6">[6]</a></p><p></p><p>Here, rank starts at 1, and k is a configured smoothing constant. With k = 60, C1 has semantic rank 2 and lexical rank 1: 1/62 + 1/61 ≈ 0.03252. C5 scores about 0.03227 and C2 about 0.01613, so C1 ranks first among these candidates.</p><p>Score blending uses score magnitude instead. Put semantic and lexical scores on comparable scales, then combine them with a configured weight. Mathematical normalization can scale scores to the same range, but only testing with real queries can prove the ranking actually surfaces the best evidence. <a href="#ref-7">[7]</a> Engines differ in what they run: Weaviate offers both ranked and relative-score fusion, while Azure AI Search ranks hybrid results with RRF. <a href="#ref-8">[8]</a><br/><br/></p><p>In this guide, hybrid_alpha (α) = 0.75 means a semantic weight of 0.75 and a lexical weight of 0.25. These are weights on normalized scores, not probabilities or a guarantee of “75% semantic priority”.</p><p>Both methods produce ranking signals, not proof of relevance or truth. Evaluate the fusion choice, candidate depth, duplicate handling, and latency. Each search branch must enforce the approved scope; the database’s physical filtering and scoring order is implementation-specific.</p><h2 id="1-4a-optional-entity-and-knowledge-graph-expansion">1.4a Optional entity and knowledge-graph expansion</h2><figure><img src="rag-technical-solution-architecture-part-2_files/image7.png" alt="Figure"></figure><p>A chunk stores readable evidence and links named mentions to canonical entity IDs. After semantic and lexical fusion supplies first-stage chunk candidates, the application may use those IDs to traverse approved knowledge-graph relationships.</p><p>This optional branch returns selected graph facts with source information and related permitted chunk candidates. The application merges and deduplicates candidates, applies the same scope, and fetches supporting passages where needed. It does not send the entire graph to the LLM.</p><p>An entity is not a chunk. C1 contains the sentence that a reader can inspect and cite. Its entity-mention records can point to canonical entity IDs such as person:ana-rao-e1042, preserving aliases, type, and optional relationships.</p><p>Entity-aware retrieval is useful for names, codes, and ambiguity. It returns only the entities and relationships needed for the question, plus supporting chunks when the relationship needs readable evidence or citation. When a name is ambiguous, the application should clarify rather than silently choose a person.</p><p>Graph expansion and agent orchestration serve different purposes. The graph supplies entities and relationships through fixed queries. An orchestrator decides which operations to run; an agent may use a model to plan steps and call tools. Neither changes the evidence-access contract. A fixed graph query does not require an autonomous agent.</p><h1 id="1-5-candidate-gates-and-record-routing">1.5 Candidate gates and record routing</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image8.png" alt="Figure"></figure><p><br/>Candidate gates apply configured rules before evidence enters prompt assembly. The figure separates three types of candidates because they require different processing:</p><ul><li>Narrative passages (unstructured written text, e.g. C1)</li><li>Structured records (database rows, fields, or graph facts)</li><li>Workflow routing (application control decisions)</li></ul><p>Gates check eligibility and limits. Only after these checks does the narrative lane run its more expensive reranker.</p><h3 id="narrative-lane">Narrative lane</h3><p>The narrative path fuses vector and keyword scores using normalized blending (hybrid_alpha = 0.75) and then applies a minimum cutoff on the fused score (an eligibility floor, e.g. 0.35) to drop weak matches. Only the surviving candidates are sent to the reranker.</p><p>Example:</p><ul><li>C1 (“By Ana Rao and Ben Lee”) → fused score 0.82 → kept</li><li>C5 (“Team goals”) → fused score 0.48 → kept</li><li>C9 (“Budget plan”) → fused score 0.18 → dropped</li></ul><h3 id="structured-records-lane">Structured records lane</h3><p>This is a deterministic path. A configured query finds records by ID, key, or defined field. Each record is then validated to confirm it:</p><ul><li>falls inside the approved retrieval scope,</li><li>has the expected type, and</li><li>contains the required fields.</li></ul><p>Only after validation is the configured record limit applied. This lane does not use score fusion or passage reranking, but it still enforces validation and source-information requirements.</p><p>Eligible narrative passages and structured facts both enter the “Evidence selected for prompt assembly” box.</p><h3 id="workflow-routes">Workflow routes</h3><p>Workflow matching uses the question and request context to decide the application’s next step. Request Context packages the user&#x27;s identity, security roles, active organization or tenant, session metadata, and system environment all into one payload.</p><p>The routing result <strong>controls processing</strong><strong>;</strong> it is <strong>not</strong> supporting evidence and does <strong>not</strong> enter prompt assembly.</p><p>Note: Stored workflow descriptions or WorkflowStep records can still appear as ordinary evidence if they are retrieved and validated through one of the evidence lanes.</p><h1 id="1-6-reranking-reads-question-and-passage-together">1.6 Reranking reads question and passage together</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image9.png" alt="Figure"></figure><p>First-stage retrieval (and optional graph expansion) produces a manageable set of candidates. Reranking then compares each eligible passage with the question to improve their order before the application takes a shortlist. The pseudocode below shows ranking and packing; helper names are illustrative.</p><p>A cross-encoder reranker evaluates the candidate text directly against the question, such as scoring &#x27;By Ana Rao and Ben Lee&#x27; against &#x27;Who wrote Team Notes?&#x27; Unlike generative LLMs, these lightweight models output a single relevance score rather than text. However, running a live neural pass for each candidate still costs more than comparing precomputed vectors. <a href="#ref-9">[9]</a></p><p>The reranker only reorders eligible passages; retrieval supplies the candidates, and the application still enforces scope.</p><pre><code>scores = reranker.score([(question, chunk.text) for chunk in candidates])
+ranked = sort_by_score(candidates, scores)
+shortlist = ranked[:20]          # illustrative ceiling
+evidence = take_within_token_budget(shortlist, max_tokens=5000)</code></pre><p>The limits above are configuration choices, not universal values. For example, a 5,000-token evidence budget may fit roughly ten 500-token chunks, not twenty or thirty. While packing the final evidence, ensure the selected chunks cover all parts of the question and keep their source provenance intact.</p><p>A reranker score is only used to rank candidates against each other for the current question. It is not a cosine similarity, a factual probability, or proof that a claim is true.</p><p><strong>Failure mode:</strong> Skipping the candidate eligibility floor or mixing uncalibrated vector and BM25 scores can let noisy chunks crowd out strong candidates (such as C1) before the reranker ever sees them.</p><h1 id="chapter-2-assemble-the-answer-generation-prompt">Chapter 2: Assemble the answer-generation prompt</h1><p>Chapter 1 retrieves, expands when needed, reranks, and selects authorized evidence records. Chapter 2 begins after C1 has been selected: the application uses C1’s stored readable text and source information, not its retrieval vector, to prepare the LLM request.</p><p>The application takes selected C1 text and source information, then combines them with the original question, trusted instructions, and a response contract. The resulting bounded answer-generation prompt is the LLM’s input. In compact form: selected C1 → prompt assembly → tokenizer → token IDs → decoder token embedding lookup. This chapter explains that handoff; Chapter 3 explains what happens inside the LLM after it.</p><h1 id="2-1-a-retrieval-vector-is-not-a-decoder-token-embedding">2.1 A retrieval vector is not a decoder token embedding</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image10.png" alt="Figure"></figure><p>A retrieval embedding helps search locate a chunk record. A decoder token embedding is the LLM’s initial representation of one token in the assembled request. The table compares their inputs, purposes and locations.</p><table>
+<tr>
+<td><strong>Representation</strong></td>
+<td><strong>What enters it</strong></td>
+<td><strong>What it is for</strong></td>
+<td><strong>Where it lives</strong></td>
+</tr>
+<tr>
+<td>Retrieval embedding</td>
+<td>Question text or chunk text.</td>
+<td>A fixed-size vector used to rank chunk records by similarity.</td>
+<td>Embedding service and vector database; chunk vectors are prepared at ingestion and query vectors are short-lived.</td>
+</tr>
+<tr>
+<td>Decoder token embedding</td>
+<td>Token IDs from the answer-generation prompt, including C1 text.</td>
+<td>The LLM’s initial per-token numerical input before transformer layers create contextual hidden states.</td>
+<td>Inside the decoder for the current request; it is runtime state, not the vector index.</td>
+</tr>
+</table><p>For the running example, the retrieval embedding helps vector search locate C1. The search result identifies the record; the application fetches C1 text and provenance, then supplies the readable sentence “By Ana Rao and Ben Lee.” and its source in the answer-generation prompt. The tokenizer converts that serialized request into token IDs, and the decoder looks up its own token embeddings before transformer processing.</p><p>Write the retrieval-vector width as dretrieval and the decoder hidden width as dmodel. They may differ, and equal numeric widths would not make the representations interchangeable. The normal RAG boundary passes selected text and provenance to the generator; it does not pass the retrieval vector as a decoder hidden state or token embedding.</p><h1 id="2-2-prompt-assembly-is-an-interface-contract">2.2 Prompt assembly is an interface contract</h1><ol><li>Select evidence: Start from the trusted instructions, original question, selected evidence with source IDs, and the response contract.</li><li>Format exact request: Combine trusted instructions, the original question, selected evidence, and the required response format, as structured messages.</li><li>Count with the target model tokenizer: Measure the input token count, accounting for message formatting overhead, output reserves, and safety margins.</li><li>Fits input budget? Verify that the input fits within the total model context limit. If it does not, trim or replace the lowest-priority evidence and recount until it fits.</li><li>Bounded serialized request: Send it to the LLM for structured generation, followed by validation.</li></ol><figure><img src="rag-technical-solution-architecture-part-2_files/image11.png" alt="Figure"></figure><p>Prompt assembly budgets and formats the evidence already selected by the retrieval pipeline. The prompt assembler is the component performing that work; a prompt template is its reusable formatting definition (such as ChatPromptTemplate), which does not perform retrieval, authorization, or response validation.</p><p>For a hosted model, supply structured messages through its supported interface; for a self-hosted model, use the matching chat template. The runtime converts those messages into the token sequence—do not apply two independent chat serializations. <a href="#ref-10">[10]</a></p><h2 id="make-the-contract-inspectable">Make the contract inspectable</h2><p>Message roles and content fields make the request inspectable; they do not prevent attention across the serialized context. Retrieved text remains untrusted data. <br/></p><p>The sketch below shows two message roles. Evidence and output requirements are fields inside the user message, not additional roles.</p><pre><code>system: Answer only from supplied evidence. Cite source IDs.
+user:
+question: Who wrote Team Notes?
+evidence: [{source_id: C1,
+location: &quot;Team Notes, v3, page 1, chunk C1&quot;,
+text: &quot;By Ana Rao and Ben Lee.&quot;}]
+output requirements: answer, source IDs, or an evidence gap</code></pre><p>Use the same citation ID in the request and response. Here, C1 identifies the selected passage; its location supplies the document, version and page. Validate source IDs and response shape in code, then assess whether the cited passage supports the answer.</p><h2 id="langchain-example">LangChain example</h2><p>ChatPromptTemplate formats supplied fields into model messages. Retrieval, access checks and token budgeting belong to the surrounding application. <a href="#ref-11">[11]</a></p><p>The example assumes that question is “Who wrote Team Notes?”, selected_chunks contains the budgeted evidence, and model is the configured chat model. It demonstrates formatting and invocation; the application validates the returned answer separately.</p><pre><code>from langchain_core.prompts import ChatPromptTemplate
+prompt = ChatPromptTemplate.from_messages([
+(&quot;system&quot;, &quot;Answer only from supplied evidence. Cite source IDs.&quot;),
+(&quot;human&quot;, &quot;Question: {question}\n\nAuthorized evidence:\n{evidence}\n\n&quot;
+&quot;Return an answer with source IDs, or state an evidence gap.&quot;),
+])
+evidence = &quot;\n\n&quot;.join(
+f&quot;[{chunk[&#x27;source_id&#x27;]}] {chunk[&#x27;location&#x27;]}\n{chunk[&#x27;text&#x27;]}&quot;
+for chunk in selected_chunks  # already authorized and ranked
+)
+messages = prompt.invoke({&quot;question&quot;: question, &quot;evidence&quot;: evidence})
+answer = model.invoke(messages)</code></pre><h2 id="a-context-budget-is-a-real-limit">A context budget is a real limit</h2><p>Budget the model’s context before the generation call. Count the input, reserve an output allowance, and leave a small margin for counting uncertainty. The example below totals 8,000 tokens; it is a sizing example, not a universal allocation.</p><p>The input allocations below include their associated formatting overhead; the evidence allocation also includes source information.</p><p></p><p>Input includes instructions, question, selected evidence, source information and formatting and message overhead. Overhead means added role markers, template headers, labels, schema text or structural wrappers that become model-input tokens—not another role or the entire payload. Count known overhead in the input; do not hide it in the safety margin.</p><p>Use a compatible local tokenizer where available, or the provider-supported counting method. Pack evidence, count the formatted request, then shorten or replace lower-priority evidence and recount until it fits. The output reserve limits available generation capacity; it cannot guarantee a complete answer. Wire-format bytes are not the same as model-input tokens.</p><table>
+<tr>
+<td><strong>Allocation</strong></td>
+<td><strong>Tokens</strong></td>
+<td><strong>Example content</strong></td>
+<td><strong>Purpose</strong></td>
+</tr>
+<tr>
+<td>Instructions, question and history</td>
+<td>1,000</td>
+<td>System instructions, response contract, user question and short conversation history.</td>
+<td>States the task and policy the model must follow.</td>
+</tr>
+<tr>
+<td>Selected evidence</td>
+<td>5,000</td>
+<td>Readable chunk text, source IDs and locations selected after retrieval and reranking.</td>
+<td>Supplies the facts the answer may use.</td>
+</tr>
+<tr>
+<td>Output reserve</td>
+<td>1,500</td>
+<td>Answer text, source citations and required structured fields.</td>
+<td>Leaves room for the model to finish rather than stopping mid-answer.</td>
+</tr>
+<tr>
+<td>Safety margin</td>
+<td>500</td>
+<td>No planned content. A deliberately unused buffer.</td>
+<td>Allowance for counting uncertainty; known overhead belongs in input.</td>
+</tr>
+</table><p><strong>Failure mode:</strong><strong> </strong>Always tokenize the fully wrapped message payload; undercounting size through raw bytes or ignored template overhead hides real token usage, silently truncating evidence at the tail of the prompt.</p><p>Chapter 2 ends when the completed answer-generation prompt reaches the LLM. The model receives the question, selected C1 text, source IDs and instructions—not retrieval indexes, scores or vectors.</p><h1 id="chapter-3-zoom-inside-the-llm">Chapter 3: Zoom inside the LLM</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image12.png" alt="Figure"></figure><p>Chapter 3 picks up at the model boundary. The runtime&#x27;s chat template serializes the Chapter 2 messages into one sequence, typically marking each role with special tokens, and the tokenizer converts that sequence into token IDs <a href="#ref-10">[10]</a>. The decoder then predicts one output token at a time <a href="#ref-12">[12]</a><a href="#ref-13">[13]</a>; retrieval vectors never enter this loop.</p><h1 id="3-1-inside-the-decoder-fixed-parameters-and-per-request-state">3.1 Inside the decoder: fixed parameters and per-request state</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image13.png" alt="Figure"></figure><p>The figure shows a representative decoder layer. Each layer lets attention mix information across positions, applies a multi-layer perceptron (MLP, also called the feed-forward network) to each position, and passes the result to the next layer. A residual path carries the hidden state around each sublayer, so a layer adds an update rather than replacing the state. Attention is the only step in which positions exchange information. <a href="#ref-14">[14]</a></p><p>In the equations below, l identifies the layer, xₗ is its incoming hidden state, and u is the state after the attention update. The two additions preserve the carried state while incorporating each sublayer’s update:</p><p></p><p></p><p>The output xₗ₊₁ passes to the next layer. Norm₁ and Norm₂ normalize their inputs; the MLP computes a position-wise update. Other decoder architectures can arrange these operations differently.</p><p>Learned parameters (the embedding table, attention projections, MLP weights and LM head) stay fixed during inference.</p><p>Request-time values (token IDs, embeddings, hidden states, logits and the KV cache) are computed for the request and normally released when it ends, although reusable KV prefixes may follow a separate cache lifecycle. A hosted API generally exposes generated output, and sometimes token log-probabilities, rather than these internal tensors. <a href="#ref-12">[12]</a><a href="#ref-15">[15]</a> Because attention lets every position read every earlier position, the model has no structural way to keep retrieved text apart from instructions. Message roles organize the request but do not isolate it, which is why Chapter 4 treats retrieved text as untrusted evidence.</p><h1 id="3-2-choosing-the-next-token-logits-and-decoding-settings">3.2 Choosing the next token: logits and decoding settings</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image14.png" alt="Figure"></figure><p>The final hidden state reaches the language-model head, which produces one logit per vocabulary item. The figure shows two alternative decoding options. Option A, greedy decoding (T = 0), selects the token with the highest logit. Option B, sampling (T &gt; 0), draws one token from a probability distribution. A request uses one option or the other; it does not switch between them mid-generation.</p><p>A logit is a raw vocabulary score. The LM head computes these scores with a learned projection of the hidden state h; some models also include a bias term. Softmax converts the scores into probabilities for sampling. Greedy decoding can apply argmax directly and does not require softmax.</p><p>For a supplementary introductory explanation of logits, see <a href="#ref-16">[16]</a>.</p><p>For the simplified three-candidate example at temperature 1 with no filtering, logits [4.1, 2.7, 1.9] yield rounded probabilities [0.7367, 0.1817, 0.0816]. Greedy decoding selects Ana. The sampling branch shows Ben as one possible draw; Ana still has the highest probability. Real vocabularies are much larger.</p><p>Here  is candidate ’s logit,  is a positive sampling temperature, and the denominator sums over allowed candidates. At , Ana’s probability is:</p><p></p><p>By following the formula <br/></p><p>Only score differences matter; adding the same constant to every logit changes no probability.</p><p>Temperature rescales logits by : lower positive values concentrate probability and higher values spread it. Top-retains the  highest-scoring candidates. Top- retains a high-probability set reaching a configured cumulative probability threshold. A runtime may compute probabilities to find that cutoff, mask excluded logits, and then normalize the retained choices. Record the processor order and settings used by the selected runtime. <a href="#ref-13">[13]</a></p><p>These controls change token selection after logits have been produced. They do not change retrieval or the evidence in the prompt. A high token probability reflects model preference in the current context, not factual support. Lower temperature makes answers more repeatable, not grounded, and outputs can still vary slightly across hardware and batching, so check every citation and claim against the evidence in code.</p><p>The selected token is appended to the sequence and becomes the input to the next decode iteration, which section 3.3 follows.</p><h1 id="3-3-the-kv-cache-speed-and-capacity">3.3 The KV cache: speed and capacity</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image15.png" alt="Figure"></figure><p>Every new token attends to all earlier positions, and their keys and values do not change. The runtime therefore stores them in a per-layer KV cache and computes only the new token&#x27;s values. The cache is request-time state, not durable knowledge or a document index. <a href="#ref-15">[15]</a><a href="#ref-17">[17]</a><a href="#ref-18">[18]</a></p><p>The runtime therefore works in two phases. Prefill processes all prompt positions in parallel and writes each layer&#x27;s keys and values to that layer&#x27;s cache; the last position&#x27;s hidden state yields the first token (Ana). Cached decode then handles one token at a time. At each layer it computes that token&#x27;s query (Q), key (K) and value (V) vectors (explained below), reads the cached keys and values, and appends the new K and V. <a href="#ref-15">[15]</a></p><h2 id="query-key-and-value-in-one-attention-layer">Query, key and value in one attention layer</h2><p>For one attention head, Q and K determine attention weights, which combine information in V. Here dₖ is the key/query width of one head, and T denotes transpose. The causal mask blocks attention to later positions. <a href="#ref-12">[12]</a><a href="#ref-19">[19]</a></p><p></p><table>
+<tr>
+<td><strong>Part</strong></td>
+<td><strong>Plain-language role</strong></td>
+</tr>
+<tr>
+<td>Layer input</td>
+<td>The token representation entering this transformer layer.</td>
+</tr>
+<tr>
+<td>Query (Q)</td>
+<td>What the current token position is looking for.</td>
+</tr>
+<tr>
+<td>Key (K)</td>
+<td>What each available token position offers for matching.</td>
+</tr>
+<tr>
+<td>Value (V)</td>
+<td>The information that a matching position can contribute.</td>
+</tr>
+<tr>
+<td>QK transpose / sqrt(dk)</td>
+<td>A scaled matching score for positions permitted by the causal mask, including the current position.</td>
+</tr>
+<tr>
+<td>Causal mask</td>
+<td>Blocks attention to future tokens, so the model cannot read its unwritten answer.</td>
+</tr>
+<tr>
+<td>Softmax</td>
+<td>Turns permitted relevance scores into attention weights.</td>
+</tr>
+<tr>
+<td>Multi-head attention</td>
+<td>Runs several learned attention patterns in parallel and combines their outputs.</td>
+</tr>
+</table><h2 id="worked-example-prefill-and-cached-decode">Worked example: prefill and cached decode</h2><p>The figure and the table follow the same illustrative 20-token prompt through prefill and two decode steps; real prompts are far longer. Cache size is counted in token positions per layer.</p><table>
+<tr>
+<td><strong>Step</strong></td>
+<td><strong>Token processed</strong></td>
+<td><strong>Cache per layer</strong></td>
+<td><strong>What is computed</strong></td>
+<td><strong>Selected next</strong></td>
+</tr>
+<tr>
+<td>Prefill</td>
+<td>20 prompt tokens, in parallel</td>
+<td>0 → 20 positions</td>
+<td>Q, K and V for all 20 positions; K and V are written to the cache.</td>
+<td>Ana (not cached yet)</td>
+</tr>
+<tr>
+<td>Decode 1</td>
+<td>Ana</td>
+<td>20 → 21 positions</td>
+<td>Q, K and V for Ana only; Ana attends to the 20 cached positions and itself.</td>
+<td>Rao (not cached yet)</td>
+</tr>
+<tr>
+<td>Decode 2</td>
+<td>Rao</td>
+<td>21 → 22 positions</td>
+<td>Q, K and V for Rao only; Rao attends to the 21 cached positions and itself.</td>
+<td>The following token</td>
+</tr>
+</table><p>Without a cache, decode step 1 would recompute K and V for all 21 positions instead of one. That saved work is what makes one-token-at-a-time generation practical.</p><h2 id="capacity-and-operating-limits">Capacity and operating limits</h2><p>These limits work together, and the Chapter 2 token budget has to satisfy all of them at once.</p><table>
+<tr>
+<td><strong>Limit</strong></td>
+<td><strong>What it bounds</strong></td>
+<td><strong>Operational effect</strong></td>
+</tr>
+<tr>
+<td>Total context window</td>
+<td>Input and output tokens together.</td>
+<td>Input, output reserve and safety margin must all fit inside it.</td>
+</tr>
+<tr>
+<td>Maximum input tokens</td>
+<td>Prompt length, prefill time and initial KV-cache allocation.</td>
+<td>Too much context raises latency and cache demand.</td>
+</tr>
+<tr>
+<td>Maximum output tokens</td>
+<td>Decoding time and maximum answer length.</td>
+<td>Bounds response cost and tail latency.</td>
+</tr>
+<tr>
+<td>KV-cache capacity</td>
+<td>How many long requests can run concurrently.</td>
+<td>Controls admission, batching and overload behavior.</td>
+</tr>
+</table><p>KV-cache memory grows with token count, layers, key/value heads, head width and numerical precision. Standard multi-head attention (MHA) keeps one key/value head per query head. Grouped-query attention (GQA) and multi-query attention (MQA) share key/value heads across query heads; for otherwise equal layouts, the memory reduction is H_Q/H_KV, the ratio of query heads to key/value heads. <a href="#ref-20">[20]</a></p><p>Runtimes manage paging, quantization, eviction and request admission <a href="#ref-15">[15]</a>, and some reuse cached prefixes across requests, which favors a stable instruction prefix placed before the variable evidence. Input length drives prefill time and cache memory, output length drives decode time, and cache capacity limits how many long requests run at once. The Chapter 2 token budget is therefore also a latency and capacity budget, which is a reason to send only the evidence the answer needs.</p><h1 id="3-4-stopping-and-output-limits">3.4 Stopping and output limits</h1><p>Generation ends when the model emits an end-of-sequence or other configured stop token, when the output matches a configured stop sequence, or when it reaches the maximum output tokens (called max_tokens or similar, depending on the provider) <a href="#ref-21">[21]</a>.</p><p>Hosted APIs usually report which condition ended the response, for example in a finish reason field; names and values vary, and some providers add endings such as a content filter or a tool call. <a href="#ref-22">[22]</a></p><table>
+<tr>
+<td><strong>How generation ended</strong></td>
+<td><strong>What it means</strong></td>
+<td><strong>What the application does</strong></td>
+</tr>
+<tr>
+<td>End-of-sequence token</td>
+<td>The model chose to stop.</td>
+<td>Validate it like any other response: schema, citations and support.</td>
+</tr>
+<tr>
+<td>Stop sequence matched</td>
+<td>Generation halted at a configured string, which many hosted APIs leave out of the returned text.</td>
+<td>Choose a stop string that cannot plausibly appear in a legitimate answer, such as inside quoted evidence or JSON.</td>
+</tr>
+<tr>
+<td>Output limit reached</td>
+<td>The answer was cut off, possibly mid-sentence or mid-field.</td>
+<td>Treat it as incomplete. Repair or retry within a limit, or return an explicitly partial result only when policy permits.</td>
+</tr>
+<tr>
+<td>Cancelled, timed out or provider error</td>
+<td>The client, the service or the provider ended the request early.</td>
+<td>Handle it as a generation exception and release the request&#x27;s resources.</td>
+</tr>
+</table><p>Streaming sends tokens as they are generated. That improves perceived responsiveness, but a client can display text that later fails validation, and the finish reason usually arrives only with the final chunk, so validate after the stream ends.</p><p>The service needs cancellation, backpressure and a policy for partial output. Set the maximum output tokens from the Chapter 2 output reserve, and check how generation ended before validating citations or showing the result.</p><p>Whatever happens inside the decoder, it can only reason over the evidence placed in its prompt. Decoding settings and cache layout cannot repair a stale or over-permissive corpus. A well-formed answer still depends on evidence that is current, traceable, access-controlled and safe to use, which is where Chapter 4 turns.</p><h1 id="chapter-4-keep-evidence-current-protect-access-and-use-it-safely">Chapter 4: Keep evidence current, protect access, and use it safely</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image16.png" alt="Figure"></figure><p>Adding a document updates external evidence records without retraining the generator. This chapter explains how to keep those records current and protect their use.</p><p><strong>Data freshness </strong>means active search returns the current approved document version and no longer returns deleted or superseded chunks after publication.</p><p><strong>Extract completely. </strong>Capture body, headings, tables, authors, page anchors and metadata; record extraction warnings.</p><p><strong>Index a candidate version. </strong>Embed the new chunks with the same model revision that embeds user questions. Then check the chunk count and run a sample question, while search still returns the current version.</p><p><strong>Publish the validated version. </strong>Change the active version from the old one to the new one only after the new version&#x27;s chunk records and both indexes (vector and BM25) are fully loaded. Never update in place or delete the old version first, or users can see mixed or missing results. Keep the old version for rollback until the new one is verified.</p><p><strong>Retire safely. </strong>Remove superseded chunks from active search. Retain historical source or record versions only under an explicit retention policy; upsert alone does not remove deleted source content.</p><p>Stable record identity prevents accidental reinsertion, while content fingerprinting detects unchanged text. Neither replaces provenance: the same sentence can occur in different documents, versions or access scopes.</p><pre><code>chunk_id = stable_chunk_id(identity)   # deterministic identity inputs
+content_hash = sha256(normalized_text.encode(&quot;utf-8&quot;)).hexdigest()
+upsert(chunk_id, text, vector, provenance, content_hash)
+validate(manifest)                 # before promoting document version</code></pre><h1 id="4-1-access-follows-evidence-records">4.1 Access follows evidence records</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image17.png" alt="Figure"></figure><p>Authentication and authorization occur before retrieval. The application converts that trusted decision into allowed scope, then applies authorized record filters to vector and lexical retrieval. Only permitted selected chunks may proceed to the answer-generation prompt, citation rendering, and audit records.</p><p>Security filtering is decided before retrieval; it is not an instruction given to the LLM. <br/>The sequence is:</p><ol><li>Authenticated identity + request context</li><li>Authorization decision</li><li>Allowed scope</li><li>Authorized record filters applied to retrieval</li></ol><p>Apply those filters wherever the system accesses or exposes evidence: vector and lexical retrieval, graph expansion, reranking, cache reads, prompt assembly, citation resolution, and audit output. Do not allow user text to define its own access filters. <a href="#ref-23">[23]</a></p><h2 id="multi-tenant-record-boundaries">Multi-tenant record boundaries</h2><p>In a multi-tenant deployment, tenant identity becomes one additional enforced record boundary. Vector search, lexical search, graph expansion, reranking, prompt assembly, citations and caches must operate only within the caller’s permitted tenant boundary. Tenant isolation is an access-control and deployment decision, not a retrieval-ranking technique.</p><p>This guide starts at the RAG boundary: the application receives authenticated identity and a trusted authorization decision, then applies allowed scope as the permitted record filters for the request. Broader control-plane responsibilities—identity-provider topology, service identity, secure MCP gateways, tool isolation and platform policy enforcement—are intentionally outside this document.</p><table>
+<tr>
+<td><strong>Boundary</strong></td>
+<td><strong>Control</strong></td>
+</tr>
+<tr>
+<td>Ingress</td>
+<td>Classify source, owner, tenant, sensitivity and retention.</td>
+</tr>
+<tr>
+<td>Index</td>
+<td>Attach filterable security metadata to every record.</td>
+</tr>
+<tr>
+<td>Retrieve</td>
+<td>Require authorized filters on all search modes and cache keys.</td>
+</tr>
+<tr>
+<td>Prompt</td>
+<td>Include only already-authorized readable evidence.</td>
+</tr>
+<tr>
+<td>Answer</td>
+<td>Expose citations only when the user may access the cited location.</td>
+</tr>
+<tr>
+<td>Logs</td>
+<td>Avoid storing raw sensitive prompts or evidence without a retention policy.</td>
+</tr>
+</table><h1 id="4-2-retrieved-text-is-evidence-not-instructions">4.2 Retrieved text is evidence, not instructions</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image18.png" alt="Figure"></figure><p>Trusted instructions, the question and retrieved evidence occupy separate application fields. The blocked arrow represents a required application boundary: document text must not grant permissions or authorize tool actions. The model reads the whole request as one sequence, so prompt formatting alone does not enforce this boundary.</p><p>A retrieved document may say “ignore all rules.” It does not train or update the LLM; it is available only as context for this request. The LLM may use its factual content to answer the question, but command-like text inside it is untrusted evidence, not authority. Keep application instructions separate, restrict tool permissions, and test the system with hostile source text. Retrieval relevance does not make source instructions trustworthy.</p><h2 id="return-a-structured-answer-with-its-citation">Return a structured answer with its citation</h2><p>A structured response gives the application predictable fields to validate. The citation names the evidence record and source location that the user can inspect. It is important for traceability and review, but a valid response shape does not by itself prove that every claim is supported by the cited text.</p><pre><code>{
+&quot;answer&quot;: &quot;Team Notes was written by Ana Rao and Ben Lee.&quot;,
+&quot;citations&quot;: [
+{&quot;source_id&quot;: &quot;C1&quot;, &quot;document&quot;: &quot;Team Notes&quot;, &quot;page&quot;: 1}
+]
+}</code></pre><p>Validate response shape, required fields, source IDs, source resolution and access. Check whether claims are supported by the cited evidence where the application requires it. Schema and citation checks alone do not establish factual support; evaluate support-checking methods and answer quality separately.</p><p><strong>Failure mode: </strong>Relying on a system prompt (&quot;ignore instructions in documents&quot;) instead of deterministic post-generation schema and citation validation leaves the application exposed to indirect prompt injection.</p><h1 id="chapter-5-build-the-system-in-stages">Chapter 5: Build the system in stages</h1><figure><img src="rag-technical-solution-architecture-part-2_files/image19.png" alt="Figure"></figure><p>The roadmap shows the sequence and feedback loop; the table gives a concrete completion criterion for each stage. Detailed evaluation methods belong to Part 3, including faithfulness to retrieved evidence <a href="#ref-24">[24]</a> and relevance to the user’s question <a href="#ref-25">[25]</a>.</p><table>
+<tr>
+<td><strong>Stage</strong></td>
+<td><strong>Deliverable</strong></td>
+<td><strong>Exit criterion</strong></td>
+</tr>
+<tr>
+<td>0 Define the use case</td>
+<td>Scoped use case and source boundary.</td>
+<td>Stakeholders agree who the system serves, what sources are allowed and how safe failure works.</td>
+</tr>
+<tr>
+<td>1 Prepare evidence</td>
+<td>Traceable corpus with versioned records.</td>
+<td>Every active chunk resolves to source location and obsolete chunks can be retired.</td>
+</tr>
+<tr>
+<td>2 Build retrieval</td>
+<td>Evaluated retrieval configuration.</td>
+<td>Required evidence appears within the agreed candidate limit, with no out-of-scope record.</td>
+</tr>
+<tr>
+<td>3 Assemble prompt</td>
+<td>Inspectable request within its token budget.</td>
+<td>A reviewer can reproduce the answer-generation prompt and identify the source of every passage.</td>
+</tr>
+<tr>
+<td>4 Generate + validate output</td>
+<td>Bounded output with validation results.</td>
+<td>Output is bounded, schema-valid and exposes only accessible citations.</td>
+</tr>
+<tr>
+<td>5 Measure and operate</td>
+<td>Evaluation and operational feedback.</td>
+<td>Team can identify the failing stage, compare changes and roll back harmful configuration.</td>
+</tr>
+</table><p>Generate + validate output means the application pins the model and request configuration, applies token and time limits, requires a response schema, validates citations and policy requirements, and records a trace. It does not claim that any generated statement is automatically true; evaluation measures factual support and answer quality.</p><h1 id="5-1-exception-flows-across-ingestion-retrieval-and-generation">5.1 Exception flows across ingestion, retrieval, and generation</h1><p>The staged implementation describes how the system ingests content and answers a question. Each stage also needs an explicit exception contract: what condition occurred, whether processing stops, retries, or continues, what state remains, and what the user receives.</p><p>Continue the Team Notes example. An ingestion failure may prevent chunk C1 from becoming searchable. A retrieval failure may prevent the application from obtaining C1 even though it was indexed successfully. A generation failure may occur after C1 has already been retrieved. These outcomes require different recovery actions and must remain distinguishable in the response and operational record.</p><figure><img src="rag-technical-solution-architecture-part-2_files/image20.jpeg" alt="Figure"></figure><p class="figure-caption"><em>One exception contract across ingestion, retrieval and generation. Ingestion publishes source versions before request time; retrieval and generation operate when a question is asked.</em></p><h2 id="5-1-1-ingestion-exceptions">5.1.1 Ingestion exceptions</h2><p>Ingestion accepts a source, parses and chunks it, creates embeddings, writes the records and publishes a new source version. Admission checks reject unsupported input, missing source access or policy violations before expensive work begins. Parsing, embedding and indexing can then fail independently. If any required step is incomplete, keep the new version inactive, so a half-finished ingestion never looks like a successful one. In the Team Notes example, a failed embedding step leaves the new C1 unpublished while the previous version keeps answering.</p><p>If another operation already owns the work, such as two jobs updating the same document, return a busy or deferred result instead of starting duplicate writes. Retry only transient failures, and give each operation a stable identity so a retry cannot create duplicates. If some writes have already happened, cleanup depends on the store and can itself fail: record the unfinished cleanup rather than claiming that the stores share one transaction.</p><h2 id="5-1-2-retrieval-exceptions">5.1.2 Retrieval exceptions</h2><p>Retrieval first checks that the application or control plane supplied a valid approved scope. Without one, it stops before search and returns a typed failure, meaning a defined error category rather than free text, without revealing inaccessible matches. With a valid scope there are three outcomes. If a required route fails, retrieval ends: the failure is returned, and neither prompt assembly nor the model call runs. If only an optional companion lookup fails, such as an extra graph or structured-record fetch, retrieval continues. If retrieval completes, the result goes to the sufficiency check.</p><p>For the optional case, keep a warning and continue with the remaining results. The sufficiency check is a configured rule owned by the application, such as evidence presence, required-fact coverage or a calibrated threshold; the generator does not decide it. If the rule passes, assemble the prompt and carry any warning into the response. If it fails, for example because no usable evidence about Team Notes came back, return an insufficient-evidence result to the user and make no model call.</p><h2 id="5-1-3-generation-exceptions">5.1.3 Generation exceptions</h2><p>Generation starts after the application assembles permitted evidence, but a successful model call does not make a successful answer: a response that hit the output limit (section 3.4) is incomplete even when the call succeeded.</p><p>Recovery depends on the condition. A transient provider or transport failure may get a bounded backoff retry, or an approved alternative service with the same access and data-handling requirements. Invalid structure or unsupported claims need repair and revalidation. An unrecoverable condition stops.</p><p>Validation decides whether the output satisfies the answer contract. A failed result may be repaired within a limit, omitted, or returned as explicitly partial where policy allows, and repaired output is validated again. A valid schema or a resolvable citation does not prove factual support. If the answer cannot be supported or validated, return a failure or an insufficient-evidence result, never placeholder text presented as a completed answer.</p><p>Preserve the outcome across CLI, API, and UI:</p><ul><li>Completed — the required contract passed</li><li>Failed — required work did not complete</li><li>Retry pending — another attempt is scheduled or queued</li><li>Degraded — an allowed result includes a disclosed limitation</li></ul><p>Transport delivery alone does not establish application success.</p><h1 id="5-2-recommended-first-implementation-and-closing-checklist">5.2 Recommended first implementation and closing checklist</h1><p>Start with one trusted document type, one embedding model, one explicit chunks collection and an application-owned retrieve-assemble-invoke-validate flow. Add BM25 or hybrid search when evaluation shows vector search misses names, codes or exact wording. Add reranking and graph traversal only when a measured question class needs them.</p><p><strong>Content </strong>Every active chunk resolves to its source location and document version, with extraction warnings preserved.</p><p><strong>Identity </strong>Deterministic record IDs support updates, and obsolete chunks can be retired from active search.</p><p><strong>Embedding </strong>Query and document embeddings use compatible model revisions and preprocessing.</p><p><strong>Search </strong>Labeled retrieval tests support the selected vector, BM25 and hybrid configurations.</p><p><strong>Scope </strong>Approved tenant and permission boundaries apply wherever evidence is returned or exposed.</p><p><strong>Context </strong>The application can reproduce the selected source text and its position in the assembled request.</p><p><strong>Generation </strong>Model configuration, chat template, token limits and stopping behavior are explicit, and the finish reason is checked before validation.</p><p><strong>Validation </strong>Citations resolve to permitted evidence, and support checks assess the claims they accompany.</p><p><strong>Evaluation </strong>Retrieval relevance, answer correctness, faithfulness and citation quality are measured separately.</p><p><strong>Operations </strong>Safe traces support failure investigation without unnecessarily retaining sensitive text.</p><p>The architectural principle is simple: external retrieval finds governed evidence; the application binds it to a question; the decoder generates language from that bounded input. Evaluation determines whether those stages produced a useful, supported and correct result.</p><h1 id="references">References</h1><p id="ref-1"><a href="https://www.sbert.net/examples/sentence_transformer/applications/semantic-search/README.html">[1] Sentence Transformers. Semantic Search. Documentation.</a></p><p id="ref-2"><a href="https://docs.weaviate.io/weaviate/concepts/indexing">[2] Weaviate. Indexing. Documentation.</a></p><p id="ref-3"><a href="https://arxiv.org/abs/1603.09320">[3] Malkov and Yashunin. Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs. 2016.</a></p><p id="ref-4"><a href="https://sites.utexas.edu/sanghavi/files/2025/04/Lec08_slides.pdf">[4] Sujay Sanghavi. k-Nearest Neighbors. University of Texas at Austin lecture slides.</a></p><p id="ref-5"><a href="https://docs.weaviate.io/weaviate/concepts/search/keyword-search">[5] Weaviate. Keyword search BM25. Documentation.</a></p><p id="ref-6"><a href="https://cormack.uwaterloo.ca/cormacksigir09-rrf.pdf">[6] Cormack, Clarke and Büttcher. Reciprocal Rank Fusion outperforms Condorcet and individual Rank Learning Methods. SIGIR, 2009.</a></p><p id="ref-7"><a href="https://docs.weaviate.io/weaviate/concepts/search/hybrid-search">[7] Weaviate. Hybrid search. Documentation.</a></p><p id="ref-8"><a href="https://learn.microsoft.com/en-us/azure/search/hybrid-search-ranking">[8] Microsoft. Relevance scoring in hybrid search using Reciprocal Rank Fusion (RRF). Microsoft Learn.</a></p><p id="ref-9"><a href="https://www.sbert.net/examples/sentence_transformer/applications/retrieve_rerank/README.html">[9] Sentence Transformers. Retrieve and Re-Rank. Documentation.</a></p><p id="ref-10"><a href="https://huggingface.co/docs/transformers/chat_templating">[10] Hugging Face. Chat templates. Transformers documentation.</a></p><p id="ref-11"><a href="https://reference.langchain.com/python/langchain-core/prompts/chat/ChatPromptTemplate">[11] LangChain. ChatPromptTemplate. Python API reference.</a></p><p id="ref-12"><a href="https://arxiv.org/html/1706.03762v7">[12] Vaswani et al. Attention Is All You Need. 2017.</a></p><p id="ref-13"><a href="https://huggingface.co/docs/transformers/generation_strategies">[13] Hugging Face. Generation strategies. Transformers documentation.</a></p><p id="ref-14"><a href="https://arxiv.org/abs/2302.13971">[14] Touvron et al. LLaMA Open and Efficient Foundation Language Models. 2023.</a></p><p id="ref-15"><a href="https://huggingface.co/docs/transformers/kv_cache">[15] Hugging Face. Cache strategies. Transformers documentation.</a></p><p id="ref-16"><a href="https://outcomeschool.com/blog/logits-in-machine-learning">[16] Outcome School. Logits in Machine Learning. Supplementary reading.</a></p><p id="ref-17"><a href="https://arxiv.org/abs/2309.06180">[17] Kwon et al. Efficient Memory Management for Large Language Model Serving with PagedAttention. 2023.</a></p><p id="ref-18"><a href="https://users.ece.utexas.edu/~gustavo/phd-theses/Parikshit.Hegde2025.pdf">[18] Parikshit Sheshachala Hegde. Scheduling and Resource Allocation in Modern Distributed Systems: Applications to Federated Learning, Blockchains, and Large Language Models. Dissertation, University of Texas at Austin, 2025.</a></p><p id="ref-19"><a href="https://www.cs.utexas.edu/~gdurrett/courses/online-course/materials.html">[19] Greg Durrett. Natural Language Processing course materials. University of Texas at Austin.</a></p><p id="ref-20"><a href="https://arxiv.org/abs/2305.13245">[20] Ainslie et al. GQA Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints. 2023.</a></p><p id="ref-21"><a href="https://huggingface.co/docs/transformers/main_classes/text_generation">[21] Hugging Face. Text generation. Transformers documentation.</a></p><p id="ref-22"><a href="https://platform.openai.com/docs/api-reference/chat/object">[22] OpenAI. Chat Completions API reference. API documentation.</a></p><p id="ref-23"><a href="https://learn.microsoft.com/en-us/azure/search/search-security-trimming-for-azure-search">[23] Microsoft. Security filters for trimming results in Azure AI Search. Microsoft Learn.</a></p><p id="ref-24"><a href="https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/faithfulness/">[24] Ragas. Faithfulness. Documentation.</a></p><p id="ref-25"><a href="https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/answer_relevance/">[25] Ragas. Response Relevancy. Documentation.</a></p>
+    </main>
+  </div>
+  <script>
+    (function () {
+      var button = document.getElementById('nav-toggle');
+      var layout = document.getElementById('doc-layout');
+      if (!button || !layout) return;
+      button.addEventListener('click', function () {
+        var hidden = layout.classList.toggle('nav-hidden');
+        button.textContent = hidden ? 'Show navigation' : 'Hide navigation';
+        button.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+      });
+    }());
+  </script>
+</body>
+</html>
