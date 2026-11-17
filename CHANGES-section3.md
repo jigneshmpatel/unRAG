@@ -114,3 +114,5 @@ Based on v113; v112 and v113 are untouched. Supersedes the earlier plan above (i
 **Figures replaced:** fig06 (C5 score 0.03227, matches the text); roadmap (fixed "use case" and "authorized", side margins added). Both were cropped to remove empty space and their heights adjusted in the document.
 
 **Open:** the outcome order differs between the 5.1.3 list (Completed, Degraded, Retry pending, Failed) and the exception figure footer (completed, failed, retry pending, degraded); the exception figure text is small at page width; Word rendering is unchecked.
+
+**Exception-flow figure (Figure 5.1) replaced** with a larger-text version: typo-free, the "hard stop is a route" note dropped (the STOP boxes and 5.1.2 text already say it), footer order now Completed, Failed, Retry pending, Degraded. The 5.1.3 outcome list was reordered to match. This closes the open items above. All 20 figures in `images/` now match the images embedded in v114.
