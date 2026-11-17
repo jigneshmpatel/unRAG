@@ -104,3 +104,13 @@ Based on v113; v112 and v113 are untouched. Supersedes the earlier plan above (i
 **Chapter 4:** code sample uses `stable_chunk_id(identity)` and passes `content_hash` to `upsert`; opening reordered (intro, freshness definition, lifecycle steps, then identity and code); lifecycle summary sentence removed; Publish step adds a rollback line; 4.2 notes the model reads the request as one sequence; subheading is "Return a structured answer with its citation".
 
 **Kept:** 5.1.3 still refers to section 3.4.
+
+## v114 follow-up: Chapter 4 steps, Chapter 5 and figures
+
+**Chapter 4:** Index step now says to embed with the same model revision that embeds user questions and to keep search on the current version while loading; Publish step says to change the active version only after all stores finish, never update in place or delete the old version first, and keep the old version for rollback.
+
+**Chapter 5:** removed the duplicated "Ingestion publishes source versions…" sentence from the 5.1 intro; rewrote 5.1.1–5.1.3 in plainer language with Team Notes examples; 5.1.2 now says the user gets an insufficient-evidence result with no model call; the generation paragraph is split so recovery stands alone; the "Generate + validate output means…" definition now follows the roadmap table; closing section is numbered 5.2.
+
+**Figures replaced:** fig06 (C5 score 0.03227, matches the text); roadmap (fixed "use case" and "authorized", side margins added). Both were cropped to remove empty space and their heights adjusted in the document.
+
+**Open:** the outcome order differs between the 5.1.3 list (Completed, Degraded, Retry pending, Failed) and the exception figure footer (completed, failed, retry pending, degraded); the exception figure text is small at page width; Word rendering is unchecked.
