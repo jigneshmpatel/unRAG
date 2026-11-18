@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A visual explanation of how retrieval-augmented generation finds document evidence and gives it to an LLM.">
+  <title>How RAG Works — Part 1</title>
+  <style>
+    :root{color-scheme:light;--blue:#0b57d0;--ink:#111827;--muted:#4b5563;--line:#e5e7eb;--soft:#f8fafc;}
+    *{box-sizing:border-box;}
+    body{font-family:Segoe UI,Arial,sans-serif;line-height:1.55;margin:0;background:#fff;color:var(--ink);}
+    .site-bar{border-bottom:1px solid var(--line);background:#fff;}
+    .site-bar-inner{max-width:1400px;margin:0 auto;padding:.8rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+    .brand{font-weight:700;color:var(--ink);text-decoration:none;font-size:1.08rem;}
+    .site-links{display:flex;gap:.9rem;flex-wrap:wrap;}
+    .site-links a{color:var(--blue);text-decoration:none;}
+    .site-links a[aria-current="page"]{font-weight:700;color:var(--ink);}
+    .layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:2rem;max-width:1400px;margin:0 auto;padding:1.25rem;}
+    .layout.nav-hidden{grid-template-columns:1fr;}
+    .layout.nav-hidden .toc{display:none;}
+    .nav-toggle{position:sticky;top:.6rem;z-index:20;margin:.6rem 0 0 .8rem;border:1px solid #d1d5db;border-radius:8px;padding:.45rem .7rem;background:#fff;color:#111;cursor:pointer;}
+    .toc{position:sticky;top:1rem;align-self:start;border:1px solid var(--line);border-radius:8px;padding:.8rem;background:#fafafa;max-height:calc(100vh - 2rem);overflow:auto;}
+    .toc ul{list-style:none;padding-left:.4rem;margin:.6rem 0 0;}
+    .toc li{margin:.28rem 0;}
+    .toc .lvl2{padding-left:.7rem;}
+    .toc a{text-decoration:none;color:var(--blue);}
+    main{max-width:980px;min-width:0;}
+    h1,h2,h3{line-height:1.25;scroll-margin-top:1rem;}
+    main h1{font-size:1.6rem;margin:1.5rem 0 .5rem;}
+    main h2{font-size:1.3rem;margin:1.2rem 0 .45rem;}
+    p{margin:.65rem 0;}
+    .doc-title{margin:.2rem 0 .15rem;font-size:2.35rem;line-height:1.2;}
+    .doc-subtitle{margin:.15rem 0 1rem;font-size:1.25rem;font-weight:500;color:#374151;}
+    figure{margin:1.2rem 0 .75rem;}
+    img{display:block;max-width:100%;height:auto;border-radius:8px;}
+    @media (max-width:1024px){.layout{grid-template-columns:1fr}.toc{position:static;max-height:none}}
+    @media (max-width:640px){.site-bar-inner{align-items:flex-start;flex-direction:column}.doc-title{font-size:2rem}.layout{padding:1rem}.nav-toggle{margin-left:1rem}}
+</style>
+</head>
+<body>
+  <header class="site-bar"><div class="site-bar-inner"><a class="brand" href="index.html">unRAG</a><nav class="site-links" aria-label="Guide navigation"><a href="rag-part1.html" aria-current="page">Part 1</a><a href="rag-part2.html">Part 2</a></nav></div></header>
+  <button id="nav-toggle" class="nav-toggle" type="button" aria-controls="page-toc" aria-expanded="true">Hide navigation</button>
+  <div class="layout" id="doc-layout">
+    <nav class="toc" id="page-toc"><strong>On this page</strong><ul><li class="lvl2"><a href="#the-story-in-one-line">The story in one line</a></li><li class="lvl2"><a href="#what-this-guide-deliberately-leaves-out">What this guide deliberately leaves out</a></li><li class="lvl1"><a href="#1-prepare-the-documents">1 Prepare the documents</a></li><li class="lvl1"><a href="#2-embed-and-store-the-chunks">2 Embed and store the chunks</a></li><li class="lvl1"><a href="#3-receive-and-scope-the-question">3 Receive and scope the question</a></li><li class="lvl1"><a href="#4-find-evidence-and-answer">4 Find evidence and answer</a></li><li class="lvl1"><a href="#the-vector-brain">The Vector Brain</a></li><li class="lvl1"><a href="#chunks-first-knowledge-graph-follows">Chunks First, Knowledge Graph Follows</a></li><li class="lvl2"><a href="#the-complete-visual-model">The complete visual model</a></li></ul></nav>
+    <main><h1 class="doc-title">How RAG Works</h1><h2 class="doc-subtitle">A visual explanation of document question answering</h2><p>This guide explains how a question-answering system finds document evidence and gives it to an LLM. Read the pictures from start to finish. The technical guide explains the database indexes and LLM internals separately.</p><h2 id="the-story-in-one-line">The story in one line</h2><p>Prepare documents → find supporting evidence → give readable evidence to the LLM → return an answer with its source.</p><h2 id="what-this-guide-deliberately-leaves-out">What this guide deliberately leaves out</h2><p>It does not explain decoder internals, HNSW settings, BM25 ranking, logits, or KV cache. Those belong in the technical architecture guide.</p><h1 id="1-prepare-the-documents">1 Prepare the documents</h1><figure><img src="rag-part1_files/image1.png" alt="Diagram for the preceding section"></figure><p>Extract text, then split it into chunks with source information.</p><p>First extract readable text from a document. Then split that text into smaller chunks. Keep the document name, page or section, and other source details so every later answer can show where its evidence came from.</p><p>Example: C1 is a chunk containing the byline “By Ana Rao and Ben Lee.” C2 may hold a publication date or another nearby part of the document.</p><h1 id="2-embed-and-store-the-chunks">2 Embed and store the chunks</h1><figure><img src="rag-part1_files/image2.png" alt="Diagram for the preceding section"></figure><p>Each passage or chunk becomes a searchable record with vector, text and source.</p><p>An embedding model creates a vector for each chunk. The system stores that vector together with the chunk’s readable text and source. The vector helps search; the text is what the LLM reads; the source supports a citation.</p><p>This is done when documents are added or changed. It prepares the collection before a person asks a question.</p><h1 id="3-receive-and-scope-the-question">3 Receive and scope the question</h1><figure><img src="rag-part1_files/image3.png" alt="Diagram for the preceding section"></figure><p>The Question Answering App coordinates retrieval and answer generation.</p><p>The Question Answering App receives the question and identifies the user. It checks access rules and sets the allowed document scope. It then sends a search request containing the question and the allowed scope.</p><p>The app coordinates the workflow. The Vector DB finds evidence; the LLM writes the answer.</p><h1 id="4-find-evidence-and-answer">4 Find evidence and answer</h1><figure><img src="rag-part1_files/image4.png" alt="Diagram for the preceding section"></figure><p>The question becomes a query vector for comparison with prepared chunks.</p><p>The question is represented in a form that can be compared with prepared chunk vectors. The search returns the most useful chunk records with their text and source information.</p><figure><img src="rag-part1_files/image5.png" alt="Diagram for the preceding section"></figure><p>Search returns supporting chunks such as C1 with readable text and source.</p><p>The LLM then receives the original question and retrieved chunk text. It does not receive vectors as evidence.</p><figure><img src="rag-part1_files/image6.png" alt="Diagram for the preceding section"></figure><p>The LLM receives the question and evidence, then writes an answer.</p><h1 id="the-vector-brain">The Vector Brain</h1><figure><img src="rag-part1_files/image7.png" alt="Diagram for the preceding section"></figure><p>Vector Brain is a teaching metaphor for the retrieval part of the Vector DB and its handoff to the LLM.</p><p>“Vector Brain” is an informal teaching name for the retrieval part of the Vector DB. The query vector helps it locate C1. C1 already stores the readable text and source. The system returns that stored text and source; it does not convert a vector back into text.</p><p>The Question Answering App combines the original question, the retrieved text, source information, and instructions before it asks the LLM to write an answer.</p><h1 id="chunks-first-knowledge-graph-follows">Chunks First, Knowledge Graph Follows</h1><figure><img src="rag-part1_files/image8.png" alt="Diagram for the preceding section"></figure><p>An optional knowledge graph follows chunk retrieval and remains linked to the source passage that supports each relationship.</p><p>Chunk search comes first because chunk text is the proof. An optional Knowledge Graph can then add precise connections, such as “Ana Rao authored Team Notes.” Each relationship should link back to the chunk that supports it.</p><h2 id="the-complete-visual-model">The complete visual model</h2><p>Question → scoped chunk search → retrieved text and source → optional verified relationships → LLM → answer and citation.</p><p>The separate technical architecture guide builds on this model. It explains how the indexes search, how the LLM generates tokens, and how to operate and evaluate the system.</p></main>
+  </div>
+
+  <script>
+    const toggle = document.getElementById('nav-toggle');
+    const layout = document.getElementById('doc-layout');
+    toggle.addEventListener('click', () => {
+      const hidden = layout.classList.toggle('nav-hidden');
+      toggle.textContent = hidden ? 'Show navigation' : 'Hide navigation';
+      toggle.setAttribute('aria-expanded', String(!hidden));
+    });
+  </script>
+</body>
+</html>
